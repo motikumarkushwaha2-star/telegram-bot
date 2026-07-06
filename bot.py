@@ -5,6 +5,8 @@ from aiogram.filters import CommandStart
 from aiogram.types import Message
 from dotenv import load_dotenv
 from openai import AsyncOpenAI
+from flask import Flask
+from threading import Thread
 
 load_dotenv()
 
@@ -15,6 +17,19 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
+# === ВЕБ-СЕРВЕР ДЛЯ RENDER (бесплатный хостинг) ===
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return "✅ Бот работает!", 200
+
+def run_flask():
+    # Render требует порт из переменной PORT (обычно 10000)
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)
+
+# === БОТ ===
 @dp.message(CommandStart())
 async def start(message: Message):
     await message.answer(
@@ -28,7 +43,7 @@ async def chat(message: Message):
     wait = await message.answer("⏳ Думаю...")
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
@@ -47,8 +62,11 @@ async def chat(message: Message):
         await wait.edit_text(f"Ошибка:\n{e}")
 
 async def main():
-    print("Бот запущен...")
+    print("🤖 Бот запущен...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
+    # Запускаем веб-сервер в отдельном потоке
+    Thread(target=run_flask, daemon=True).start()
+    # Запускаем бота
     asyncio.run(main())
