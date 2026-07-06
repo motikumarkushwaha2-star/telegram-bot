@@ -17,7 +17,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-# === ВЕБ-СЕРВЕР ДЛЯ RENDER ===
+# === ВЕБ-СЕРВЕР ДЛЯ RENDER (чтобы не усыплял) ===
 app = Flask(__name__)
 
 @app.route('/')
@@ -42,7 +42,7 @@ async def chat(message: Message):
     wait = await message.answer("⏳ Думаю...")
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
