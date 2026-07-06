@@ -28,7 +28,7 @@ async def chat(message: Message):
     wait = await message.answer("⏳ Думаю...")
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o",
+            model="gpt-4o-mini",
             messages=[
                 {
                     "role": "system",
@@ -50,5 +50,5 @@ async def main():
     print("Бот запущен...")
     await dp.start_polling(bot)
 
-if __name__ == "__main__":  
+if __name__ == "__main__":
     asyncio.run(main())
