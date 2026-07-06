@@ -28,7 +28,7 @@ async def chat(message: Message):
     wait = await message.answer("⏳ Думаю...")
     try:
         response = await client.chat.completions.create(
-            model="gpt-4o-mini",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
