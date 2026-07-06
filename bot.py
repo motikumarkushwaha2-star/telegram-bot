@@ -17,7 +17,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-# === ВЕБ-СЕРВЕР ДЛЯ RENDER (бесплатный хостинг) ===
+# === ВЕБ-СЕРВЕР ДЛЯ RENDER ===
 app = Flask(__name__)
 
 @app.route('/')
@@ -25,7 +25,6 @@ def home():
     return "✅ Бот работает!", 200
 
 def run_flask():
-    # Render требует порт из переменной PORT (обычно 10000)
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
 
