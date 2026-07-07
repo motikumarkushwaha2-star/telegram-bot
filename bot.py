@@ -37,6 +37,15 @@ dp = Dispatcher()
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 # ======================================
+# <<< ДОБАВЛЕНО >>>
+# История диалогов пользователей
+# Ключ = Telegram ID
+# Значение = список сообщений
+# ======================================
+
+dialog_histories = {}
+
+# ======================================
 # Веб-сервер для Render
 # ======================================
 
@@ -69,7 +78,30 @@ async def start(message: Message):
 @dp.message(F.text)
 async def chat(message: Message):
 
+    # <<< ДОБАВЛЕНО >>>
+    # Получаем ID пользователя
+
+    user_id = message.from_user.id
+
+    # Если пользователь пишет впервые —
+    # создаём для него историю
+
+    if user_id not in dialog_histories:
+        dialog_histories[user_id] = []
+
+    history = dialog_histories[user_id]
+
     wait = await message.answer("⏳ Думаю...")
+
+    # <<< ДОБАВЛЕНО >>>
+    # Сохраняем сообщение пользователя
+
+    history.append(
+        {
+            "role": "user",
+            "content": message.text
+        }
+    )
 
     try:
 
@@ -80,14 +112,23 @@ async def chat(message: Message):
                     "role": "system",
                     "content": SYSTEM_PROMPT
                 },
-                {
-                    "role": "user",
-                    "content": message.text
-                }
+
+                # <<< ДОБАВЛЕНО >>>
+                *history
             ]
         )
 
         answer = response.choices[0].message.content
+
+        # <<< ДОБАВЛЕНО >>>
+        # Сохраняем ответ GPT
+
+        history.append(
+            {
+                "role": "assistant",
+                "content": answer
+            }
+        )
 
         await wait.delete()
         await message.answer(answer)
