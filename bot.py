@@ -1,5 +1,6 @@
 import asyncio
 import os
+import json
 from threading import Thread
 
 from aiogram import Bot, Dispatcher, F
@@ -29,6 +30,30 @@ def load_system_prompt():
 SYSTEM_PROMPT = load_system_prompt()
 
 # ======================================
+# Работа с историей
+# ======================================
+
+HISTORY_FILE = "history.json"
+MAX_HISTORY = 30
+
+
+def load_histories():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            with open(HISTORY_FILE, "r", encoding="utf-8") as file:
+                data = json.load(file)
+                return {int(k): v for k, v in data.items()}
+        except (json.JSONDecodeError, ValueError):
+            return {}
+    return {}
+
+
+def save_histories(histories):
+    with open(HISTORY_FILE, "w", encoding="utf-8") as file:
+        json.dump(histories, file, ensure_ascii=False, indent=4)
+
+
+# ======================================
 # Инициализация
 # ======================================
 
@@ -36,14 +61,7 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher()
 client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
-# ======================================
-# <<< ДОБАВЛЕНО >>>
-# История диалогов пользователей
-# Ключ = Telegram ID
-# Значение = список сообщений
-# ======================================
-
-dialog_histories = {}
+dialog_histories = load_histories()
 
 # ======================================
 # Веб-сервер для Render
@@ -51,13 +69,16 @@ dialog_histories = {}
 
 app = Flask(__name__)
 
+
 @app.route("/")
 def home():
     return "✅ Бот работает!", 200
 
+
 def run_flask():
     port = int(os.environ.get("PORT", 10000))
     app.run(host="0.0.0.0", port=port)
+
 
 # ======================================
 # Команда /start
@@ -71,6 +92,7 @@ async def start(message: Message):
         "Напишите мне любой вопрос."
     )
 
+
 # ======================================
 # Общение с GPT
 # ======================================
@@ -78,13 +100,7 @@ async def start(message: Message):
 @dp.message(F.text)
 async def chat(message: Message):
 
-    # <<< ДОБАВЛЕНО >>>
-    # Получаем ID пользователя
-
     user_id = message.from_user.id
-
-    # Если пользователь пишет впервые —
-    # создаём для него историю
 
     if user_id not in dialog_histories:
         dialog_histories[user_id] = []
@@ -93,15 +109,12 @@ async def chat(message: Message):
 
     wait = await message.answer("⏳ Думаю...")
 
-    # <<< ДОБАВЛЕНО >>>
-    # Сохраняем сообщение пользователя
+    history.append({
+        "role": "user",
+        "content": message.text
+    })
 
-    history.append(
-        {
-            "role": "user",
-            "content": message.text
-        }
-    )
+    history[:] = history[-MAX_HISTORY:]
 
     try:
 
@@ -112,29 +125,27 @@ async def chat(message: Message):
                     "role": "system",
                     "content": SYSTEM_PROMPT
                 },
-
-                # <<< ДОБАВЛЕНО >>>
                 *history
             ]
         )
 
         answer = response.choices[0].message.content
 
-        # <<< ДОБАВЛЕНО >>>
-        # Сохраняем ответ GPT
+        history.append({
+            "role": "assistant",
+            "content": answer
+        })
 
-        history.append(
-            {
-                "role": "assistant",
-                "content": answer
-            }
-        )
+        history[:] = history[-MAX_HISTORY:]
+
+        save_histories(dialog_histories)
 
         await wait.delete()
         await message.answer(answer)
 
     except Exception as e:
         await wait.edit_text(f"Ошибка:\n{e}")
+
 
 # ======================================
 # Запуск
@@ -143,6 +154,7 @@ async def chat(message: Message):
 async def main():
     print("🤖 Бот запущен...")
     await dp.start_polling(bot)
+
 
 if __name__ == "__main__":
     Thread(target=run_flask, daemon=True).start()
